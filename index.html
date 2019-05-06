@@ -63,7 +63,7 @@
 <h2 id="contents">Contents</h2> 
     <ul class="toc">
         <li><a href="#introduction">Introduction</a></li>
-        <li><a href="#step1">Step 1. Create a Self Referencing Security Groups in the Main VPC</a></li>
+        <li><a href="#step1">Step 1. Create a Self Referencing Security Group in the Main VPC</a></li>
         <li><a href="#step2">Step 2. Create a MySQL RDS Database</a></li>
         <li><a href="#step3">Step 3. Create an EC2 (bastion) Instance</a></li>
         <li><a href="#step4">Step 4. Connect to MySQL via MySQL Workbench from my local machine</a></li>
@@ -84,7 +84,7 @@
 
 
 <br><br>
-<h2 id="step1">Step 1. Create a Self Referencing Security Groups in the Main VPC</h2>
+<h2 id="step1">Step 1. Create a Self Referencing Security Group in the Main VPC</h2>
     <p>In order for our EC2 (bastion) Instance to connect to our RDS (MySQL) Instance, we need to create a Security Group to allow this traffic.</p>
     <ol>
         <li>Go to the EC2 Dashboard
@@ -150,7 +150,7 @@
         <li>To add our Self Referencing Security Group, click "Modify"
             <br><a href='rds-11.png'><img src='rds-11.png'></a>
         </li>
-        <li>Add the security group (select it from the drop-down)
+        <li>Add the Self Referencing Security Group (select it from the drop-down)
             <br><a href='rds-12.png'><img src='rds-12.png'></a>
         </li>
         <li>Choose "Apply Immediately" before clicking "Modify DB Instance"
@@ -176,7 +176,7 @@
         <li>Use the "t2.micro" then Click "Next: Configure Instance Details"
             <br><a href='ec2-03.png'><img src='ec2-03.png'></a>
         </li>
-        <li>Add it to a Public Subnet in the Main VPC then Click "Next: Add Storage"
+        <li>Add it to a <em>Public Subnet</em> in the <em>Main VPC</em> then Click "Next: Add Storage"
             <br><a href='ec2-04.png'><img src='ec2-04.png'></a>
         </li>
         <li>Click "Next: Add Tags"
@@ -236,7 +236,7 @@
             The above example sets up an ssh tunnel listening on port 3307, which relays all traffic you your MySQL database on port 3306 via your EC2 Instance. Use Ctrl+C to close the connection.
             <br><a href='run-tunnel.png'><img src='run-tunnel.png'></a>
         </li>
-        <li>In a new terminal window on your local machine, test the connection to your MySQL instance:
+        <li>With the tunnel still open, go to a new terminal window on your local machine, test the connection to your MySQL instance:
             <br><br>
             <code>mysql -u rootuser -p -h 127.0.0.1 -P 3307</code>
             <br><br>
