@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>External Access to MySQL</title>
+</head>
+<link href="http://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+<link rel="stylesheet" href="http://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<style>
+    body {
+        font-family: 'Roboto', sans-serif;
+        max-width:1200px;
+        margin:0 auto;
+    }
+    img {
+        border:3px solid black;
+        margin:10px 10px;
+        padding:0;
+        max-width: 960px;
+    }
+    li {
+        padding: 5px;
+    }
+    ol {
+        list-style-type: lower-roman;
+        list-style-position: inside;
+    }
+    .toc li {
+        font-size:1.4em;
+        list-style: none;
+    }
+    .cntr {
+        text-align:center;
+    }
+    .eg {
+        color: #080;
+    }
+    .highlight {
+        background-color: #FF9;
+    }
+    code {
+        font-family: monospace; 
+        font-size: 1em;
+        white-space: pre;
+    }
+    .codediv {
+        padding: 10px;
+        background-color: #ddd;
+        margin: 0 65px;
+        width: 850px;
+        display: block;
+        border: 1px solid black;
+    }
+    a, a:visited {
+        text-decoration: none;
+        color:#369;
+    }
+</style>
+<body>
+
+
+<h1 class='cntr'>External Access to MySQL</h1>
+
+<h2 id="contents">Contents</h2> 
+    <ul class="toc">
+        <li><a href="#introduction">Introduction</a></li>
+        <li><a href="#step1">Step 1. Create a Self Referencing Security Groups in the Main VPC</a></li>
+        <li><a href="#step2">Step 2. Create a MySQL RDS Database</a></li>
+        <li><a href="#step3">Step 3. Create an EC2 (bastion) Instance</a></li>
+        <li><a href="#step4">Step 4. Connect to MySQL via MySQL Workbench from my local machine</a></li>
+    </ul>
+
+<br><br>
+<h2 id="introduction">Introduction</h2>
+    <p>When OIT provision an account in AWS, we create a <em>Main VPC</em> (virtual private cloud) divided into a number of subnets. We categorize those subnets as follows:
+        <ul>
+            <li>Public - resources placed in these subnets are accessible from the Internet.</li>
+            <li>Private - resources placed in these subnets have Internet access via NAT (network address translation) but are not visible from the Internet.</li>
+            <li>Data - resources placed in these subnets have no access to or from the Internet.</li>
+        </ul>
+    </p>
+    <p>We recommend when creating a Database in AWS that you place it in one of the Data subnets for security purposes.</p>
+    <p><strong>To connect to your database from an external client, you will need to set up a virtual machine (EC2) as a <a href="https://en.wikipedia.org/wiki/Bastion_host">bastion host</a>. This machine will only
+    need to run while you are accessing your database; it is recommended you shut it down while it is not needed to save money.</strong></p>
+
+
+<br><br>
+<h2 id="step1">Step 1. Create a Self Referencing Security Groups in the Main VPC</h2>
+    <p>In order for our EC2 (bastion) Instance to connect to our RDS (MySQL) Instance, we need to create a Security Group to allow this traffic.</p>
+    <ol>
+        <li>Go to the EC2 Dashboard
+            <br><a href='goto-ec2.png'><img src='goto-ec2.png'></a>
+        </li>
+        <li>Select "Security Groups" (on the left hand side).
+            <br><a href='sg-01.png'><img src='sg-01.png'></a>
+        </li>
+        <li>Select "Create Security Group".
+            <br><a href='sg-02.png'><img src='sg-02.png'></a>
+        </li>
+        <li>Give the security group a name and description. <i class="fas fa-exclamation-triangle"></i> Make sure you add it to the <em>Main VPC</em>.
+            <br><a href='sg-03.png'><img src='sg-03.png'></a>
+        </li>
+        <li>Edit the "Inbound" rules of your Security Group - note the Id of the Security Group (eg. sg-0966cb13056887638).
+            <br><a href='sg-04.png'><img src='sg-04.png'></a>
+        </li>
+        <li>Add an inbound rule for MySQL/Aurora traffic allowing access from the security group id of this security group.
+            <br><a href='sg-05.png'><img src='sg-05.png'></a>
+        </li>
+    </ol>
+    <p>Security Group inbound rules can be thought of as 1) <em>WHAT</em> are we giving access to, and 2) <em>WHO</em> are we giving that access to.</p>
+    <p>We will add this Self Referencing group to our DB Instance because it has the <em>WHAT</em>. 
+        We will add it to our EC2 instance to make it the <em>WHO</em>.</p>
+
+<br><br>
+<h2 id="step2">Step 2. Create a MySQL RDS Database</h2>
+
+    <ol>
+        <li>Go to RDS
+            <br><a href='goto-rds.png'><img src='goto-rds.png'></a>
+        </li>
+        <li>Click "Create Database"
+            <br><a href='rds-01.png'><img src='rds-01.png'></a>
+        </li>
+        <li>Select MySQL
+            <br><a href='rds-02.png'><img src='rds-02.png'></a>
+        </li>
+        <li>Select the Production Level
+            <br><a href='rds-03.png'><img src='rds-03.png'></a>
+        </li>
+        <li>Choose the Instance Class
+            <br><a href='rds-04.png'><img src='rds-04.png'></a>
+        </li>
+        <li>Add the Instance Identifier, Username, and Password 
+            <br><a href='rds-05.png'><img src='rds-05.png'></a>
+        </li>
+        <li>Place it in the <em>Main VPC</em>
+            <br><a href='rds-06.png'><img src='rds-06.png'></a>
+        </li>
+        <li>Create the Database
+            <br><a href='rds-07.png'><img src='rds-07.png'></a>
+        </li>
+        <li>Click "View DB Instance Details ""
+            <br><a href='rds-08.png'><img src='rds-08.png'></a>
+        </li>
+        <li>Wait
+            <br><a href='rds-09.png'><img src='rds-09.png'></a>
+        </li>
+        <li>Once the database is created, note the endpoint (eg. my-rds.crzc9xds3qkq.us-west-2.rds.amazonaws.com)
+            <br><a href='rds-10.png'><img src='rds-10.png'></a>
+        </li>
+        <li>To add our Self Referencing Security Group, click "Modify"
+            <br><a href='rds-11.png'><img src='rds-11.png'></a>
+        </li>
+        <li>Add the security group (select it from the drop-down)
+            <br><a href='rds-12.png'><img src='rds-12.png'></a>
+        </li>
+        <li>Choose "Apply Immediately" before clicking "Modify DB Instance"
+            <br><a href='rds-13.png'><img src='rds-13.png'></a>
+        </li>
+    </ol>
+
+    
+<br><br>
+<h2 id="step3">Step 3. Create an EC2 (bastion) Instance</h2>
+    <p>As we are creating our EC2 Instance in a Public Subnet we will have SSH (secure shell) access to it. We will need to use a Security Group to limit who has access.</p>
+
+    <ol>
+        <li>Go to the EC2 Dashboard
+            <br><a href='goto-ec2.png'><img src='goto-ec2.png'></a>
+        </li>
+        <li>Click "Launch Instance"
+            <br><a href='ec2-01.png'><img src='ec2-01.png'></a>
+        </li>
+        <li>Select the "Amazon Linux 2 AMI"
+            <br><a href='ec2-02.png'><img src='ec2-02.png'></a>
+        </li>
+        <li>Use the "t2.micro" then Click "Next: Configure Instance Details"
+            <br><a href='ec2-03.png'><img src='ec2-03.png'></a>
+        </li>
+        <li>Add it to a Public Subnet in the Main VPC then Click "Next: Add Storage"
+            <br><a href='ec2-04.png'><img src='ec2-04.png'></a>
+        </li>
+        <li>Click "Next: Add Tags"
+            <br><a href='ec2-05.png'><img src='ec2-05.png'></a>
+        </li>
+        <li>Give your instance a "Name" tag (and other tags as needed) then Click "Next: Configure Security Group"
+            <br><a href='ec2-06.png'><img src='ec2-06.png'></a>
+        </li>
+        <li>"Create a new security group" with access to SSH (port 22) only from BYU Campus IP Addresses (128.187.0.0/16) then Click "Review and Launch"
+            <br><a href='ec2-06a.png'><img src='ec2-06a.png'></a>
+        </li>
+        <li>Click "Launch"
+            <br><a href='ec2-07.png'><img src='ec2-07.png'></a>
+        </li>
+        <li>Create and Download a Key Pair - then Click "Launch Instance"
+            <br><a href='ec2-08.png'><img src='ec2-08.png'></a>
+        </li>
+        <li>Click "View Instances"
+            <br><a href='ec2-09.png'><img src='ec2-09.png'></a>
+        </li>
+        <li>Note the Public DNS (IPv4) (eg. ec2-34-209-142-107.us-west-2.compute.amazonaws.com)
+            <br><a href='ec2-10.png'><img src='ec2-10.png'></a>
+        </li>
+        <li>Click the "Connect" button to get information on how to SSH to your instance
+            <br><a href='ec2-11.png'><img src='ec2-11.png'></a>
+        </li>
+        <li>Open a terminal window (linux/mac), navigate to the directory into which you saved your key pair, and connect to your EC2 instance.
+            <br><a href='ec2-12.png'><img src='ec2-12.png'></a>
+        </li>
+        <li>Update (as needed)
+            <br><a href='ec2-13.png'><img src='ec2-13.png'></a>
+        </li>
+        <li>Install the mysql client (for testing purposes) - Logging into your mysql server will currently fail; we need to connect the Self Referencing Security Group to our instance.
+            <br><a href='ec2-14.png'><img src='ec2-14.png'></a>
+        </li>
+        <li>In the EC2 Dashboard, select your instance. Click "Actions" -> "Networking" -> "Change Security Groups"
+            <br><a href='ec2-15.png'><img src='ec2-15.png'></a>
+        </li>
+        <li>Make sure the ssh security group and the self referencing security group are selected.
+            <br><a href='ec2-16.png'><img src='ec2-16.png'></a>
+        </li>
+        <li>From your terminal window, test connecting to your database. (eg. mysql -h my-rds.crzc9xds3qkq.us-west-2.rds.amazonaws.com -u rootuser -p )
+            <br><a href='ec2-17.png'><img src='ec2-17.png'></a>
+        </li>
+    </ol>
+
+
+   
+<br><br>
+<h2 id="step4">Step 4. Connect to MySQL via MySQL Workbench from my local machine</h2>
+
+    <ol>
+        <li>On your local machine, open a terminal window and navigate to the directory of your key pair. Create a tunnel to your MySQL DB through your EC2 Instance:
+            <br><br>
+            <code>ssh -N -L 3307:my-rds.crzc9xds3qkq.us-west-2.rds.amazonaws.com:3306 ec2-user@ec2-34-209-142-107.us-west-2.compute.amazonaws.com -i "my-bastion-keypair.pem"</code>
+            <br><br>
+            The above example sets up an ssh tunnel listening on port 3307, which relays all traffic you your MySQL database on port 3306 via your EC2 Instance. Use Ctrl+C to close the connection.
+            <br><a href='run-tunnel.png'><img src='run-tunnel.png'></a>
+        </li>
+        <li>In a new terminal window on your local machine, test the connection to your MySQL instance:
+            <br><br>
+            <code>mysql -u rootuser -p -h 127.0.0.1 -P 3307</code>
+            <br><br>
+            The tunnel allows us to connect to our database as if it were running on our machine; 127.0.0.1 (or localhost) on port 3307
+            <br><a href='test-01.png'><img src='test-01.png'></a>
+        </li>
+        <li>Once we know our tunnel is working, we can set up our client - MySQL Workbench 
+            <br><a href='wb-01.png'><img src='wb-01.png'></a>
+        </li>
+        <li>Add a new connection. Host: 127.0.0.1, Port: 3307, Username: rootuser (or whatever you used)
+            <br><a href='wb-02.png'><img src='wb-02.png'></a>
+        </li>
+        <li>Enter the Password
+            <br><a href='wb-03.png'><img src='wb-03.png'></a>
+        </li>
+        <li>It Works!!
+            <br><a href='wb-04.png'><img src='wb-04.png'></a>
+        </li>
+        <li>Open the new connection. (Any time you access this, you must have the tunnel up. To save cost, shut down the EC2 instance while you are not using the client.)
+            <br><a href='wb-05.png'><img src='wb-05.png'></a>
+        </li>
+        <li>GUI Database Access
+            <br><a href='wb-06.png'><img src='wb-06.png'></a>
+        </li>
+
+    </ol>
+
+
+<br><br>
+
+</body>
+</html>
+
+
+
